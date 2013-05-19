@@ -1,18 +1,19 @@
 package gameplay;
+
 import java.util.ArrayList;
 import java.util.BitSet;
 
-
 public class PositionConsts {
-	public final static int WIDTH = 7;
-	public final static int HEIGHT = 6;
-	public final static int SIZE = WIDTH*HEIGHT;
-	public final static int WIN_SCORE = 10000;
-	public final static int ZUGWANG_SCORE = 5000;
-	public final static BitSet[] COLUMNS = createColumns();
-    public final static BitSet[] ROWS = createRows();
-	public final static ArrayList<BitSet> FOURS_IN_A_ROW = createFoursInARow();
-	public final static ArrayList<Integer> columnIndices = createColumnIndices();
+	public static final int WIDTH = 7;
+	public static final int HEIGHT = 6;
+	public static final int SIZE = WIDTH*HEIGHT;
+	public static final int WIN_SCORE = 10000;
+	public static final int ZUGWANG_SCORE = 5000;
+	public static final int DOUBLE_THREAT_SCORE = 7000;
+	public static final BitSet[] COLUMNS = createColumns();
+	public static final BitSet[] ROWS = createRows();
+	public static final ArrayList<BitSet> FOURS_IN_A_ROW = createFoursInARow();
+	public static final ArrayList<Integer> columnIndices = createColumnIndices();
 
 	private static BitSet[] createColumns() {
 		BitSet[] columns = new BitSet[WIDTH];
@@ -94,4 +95,5 @@ public class PositionConsts {
 	private static int getPositionIndex(int column, int row) {
 		return column + row*WIDTH;
 	}
+	
 }

@@ -1,4 +1,4 @@
-package gui;
+package gameplay;
 
 public enum Difficulty {
 	EASY,
@@ -8,5 +8,9 @@ public enum Difficulty {
 
 	public Difficulty getNext() {
 		return values()[(ordinal()+1) % values().length];
+	}
+	
+	public int getDepth() {
+		return 2 + ordinal()*2;
 	}
 }

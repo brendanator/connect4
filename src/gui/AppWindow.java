@@ -1,7 +1,9 @@
 package gui;
 
+import gameplay.Difficulty;
 import gameplay.Play;
 import gameplay.Position;
+import gameplay.ZobristHashing;
 
 import java.awt.EventQueue;
 import java.awt.GridLayout;
@@ -110,6 +112,7 @@ public class AppWindow {
 
 	private void startNewGame() {
 		history.clear();
+		ZobristHashing.clear();
 		position = new Position();
 		board.showPosition(position);
 	}
@@ -129,7 +132,7 @@ public class AppWindow {
 		if (!position.isGameOver()) {
 			EventQueue.invokeLater( new Runnable() {
 				public void run() {
-					updatePosition(play.findNextMove(position, 2 + difficulty.ordinal()*2));
+					updatePosition(play.findNextMove(position, difficulty));
 				}
 			} );
 		}

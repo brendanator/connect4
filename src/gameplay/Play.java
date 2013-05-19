@@ -5,11 +5,11 @@ import java.util.Collections;
 import java.util.List;
 
 public class Play {
-	public Position findNextMove(Position position, int depth) {
+	public Position findNextMove(Position position, Difficulty difficulty) {
 		List<Position> positions = position.getPossibleMoves();
 		Collections.shuffle(positions);
 		
-		for (int i = 1; i < depth; i++) {
+		for (int i = 1; i < difficulty.getDepth(); i++) {
 			List<Position> newPositions = new ArrayList<Position>();
 			for (int j : findBestMovesAtDepth(positions, i)) {
 				newPositions.add(0, positions.remove(j));

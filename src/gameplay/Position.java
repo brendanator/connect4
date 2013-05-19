@@ -6,6 +6,7 @@ import java.util.ArrayList;
 import java.util.BitSet;
 
 public class Position implements BoardPosition {
+	private BitSet zobristHash;
 	private BitSet pieces;
 	private BitSet redPieces;
 	private BitSet yellowPieces;
@@ -13,6 +14,7 @@ public class Position implements BoardPosition {
 	private int positionValue;
 	private BitSet redWin = new BitSet(PositionConsts.SIZE);
 	private BitSet yellowWin = new BitSet(PositionConsts.SIZE);
+	private DoubleThreat doubleThreat = DoubleThreat.NONE;
 	private Zugwang zugwang = Zugwang.NONE;
 	private BitSet redThreats = new BitSet(PositionConsts.SIZE);
 	private BitSet yellowThreats = new BitSet(PositionConsts.SIZE);
@@ -23,17 +25,18 @@ public class Position implements BoardPosition {
 
 
 	public Position() {
-		this(new BitSet(PositionConsts.SIZE), new BitSet(PositionConsts.SIZE), Turn.RED);
+		this(new BitSet(PositionConsts.SIZE), new BitSet(PositionConsts.SIZE), Turn.RED, new BitSet(ZobristHashing.ZOBRIST_SIZE));
 	}
 
-	public Position(BitSet redPieces, BitSet yellowPieces, Turn turn) {
+	public Position(BitSet redPieces, BitSet yellowPieces, Turn turn, BitSet zobristHash) {
 		this.pieces = orBitSets(redPieces, yellowPieces);
 		this.redPieces = redPieces;
 		this.yellowPieces = yellowPieces;
 		this.turn = turn;
+		this.zobristHash = zobristHash;
 		evaluatePosition();
 	}
-	
+
 	private void evaluatePosition() {
 		analyzePosition();
 
@@ -43,29 +46,19 @@ public class Position implements BoardPosition {
 			positionValue =  -PositionConsts.WIN_SCORE;
 		} else {
 			positionValue =  0
-				+ evaluateZugwang()
-				+ redThreats.cardinality()*100 - yellowThreats.cardinality()*100
-				// TODO Only include horizontal and diagonal threats?
-				+ redMinorThreatCount*10 - yellowMinorThreatCount*10 
-				+ redBlockers - yellowBlockers;
-		}
-	}
-
-	private int evaluateZugwang() {
-		switch (zugwang) {
-		case RED:
-			return PositionConsts.ZUGWANG_SCORE;
-		case YELLOW:
-			return -PositionConsts.ZUGWANG_SCORE;
-		default:
-			return 0;
+			+ doubleThreat.score()
+			+ zugwang.score()
+			+ redThreats.cardinality()*100 - yellowThreats.cardinality()*100
+			// TODO Only include horizontal and diagonal threats?
+			+ redMinorThreatCount*10 - yellowMinorThreatCount*10 
+			+ redBlockers - yellowBlockers;
 		}
 	}
 
 	private void analyzePosition() {
 		BitSet redFourInARowChances = new BitSet(PositionConsts.SIZE);
 		BitSet yellowFourInARowChances = new BitSet(PositionConsts.SIZE);
-		
+
 		for (BitSet fourInARow : PositionConsts.FOURS_IN_A_ROW) {
 			int redMatches = andBitSets(redPieces, fourInARow).cardinality();
 			int yellowMatches = andBitSets(yellowPieces, fourInARow).cardinality();
@@ -82,7 +75,7 @@ public class Position implements BoardPosition {
 			} else if (yellowMatches == 2 && redMatches == 0) {
 				yellowMinorThreatCount += 1;
 			} 
-			
+
 			if (redMatches >= 1) {
 				redBlockers++;
 			} 
@@ -90,11 +83,11 @@ public class Position implements BoardPosition {
 				yellowBlockers++;
 			}
 		}
-		
+
 		redThreats = xorBitSets(redFourInARowChances, andBitSets(redPieces, redFourInARowChances));
 		yellowThreats = xorBitSets(yellowFourInARowChances, andBitSets(yellowPieces, yellowFourInARowChances));
-		
-		analyzeZuzwang();
+
+		analyzeThreats();
 	}
 
 	// Opposing odds above evens and evens above odds can be ignored
@@ -102,23 +95,33 @@ public class Position implements BoardPosition {
 	// Red even threats can be ignored
 	// Repeating threats can be ignored e.g. Red odd above red odd = red odd
 	// A red and yellow odd threat in same location can be treated as a red odd threat with a yellow odd threat above
-	private void analyzeZuzwang() {
+	private void analyzeThreats() {
 		int redOddThreats = 0;
 		int yellowOddThreats = 0;
 		int redOddAboveYellowOddThreats = 0;
 		int yellowOddAboveRedOddThreats = 0;
 		boolean yellowEvenThreats = false;
-		
+		int lowestRedDoubleThreat = PositionConsts.HEIGHT;
+		int lowestYellowDoubleThreat = PositionConsts.HEIGHT;
+
 		for(int i = 0; i < PositionConsts.WIDTH; i++) {
+			int lowestRedThreat = PositionConsts.HEIGHT;
 			boolean redOddThreat = false;
 			boolean redEvenThreat = false;
+			int lowestYellowThreat = PositionConsts.HEIGHT;
 			boolean yellowOddThreat = false;
 			boolean yellowEvenThreat = false;
-			for (int j = 1; j < PositionConsts.HEIGHT; j++) {
+
+			boolean existingRedThreat = false;
+			boolean existingYellowThreat = false;
+
+			for (int j = 0; j < PositionConsts.HEIGHT; j++) {
 				int positionIndex = getPositionIndex(i, j);
-				
-				if (j % 2 == 0) { // Odd threat
-					if (redThreats.get(positionIndex)) {
+
+				if (redThreats.get(positionIndex)) {
+					lowestRedThreat = Math.min(lowestRedThreat, j);
+
+					if (j % 2 == 0) { // Odd threat
 						if (!redOddThreat && !yellowEvenThreat) {
 							redOddThreat = true;
 							if (!yellowOddThreat) {
@@ -127,9 +130,24 @@ public class Position implements BoardPosition {
 								redOddAboveYellowOddThreats += 1;
 							}
 						}
+					} else { // Even threat
+						redEvenThreat = true;
 					}
+
+					if (existingRedThreat && lowestYellowThreat >= j) {
+						lowestRedDoubleThreat = Math.min(lowestRedDoubleThreat, (j-1-andBitSets(pieces, PositionConsts.COLUMNS[i]).cardinality()));
+					} else {
+						existingRedThreat = true;
+					}
+				} else {
+					existingRedThreat = false;
+				}
+
+
+				if (yellowThreats.get(positionIndex)) {
+					lowestYellowThreat = Math.min(lowestYellowThreat, j);
 					
-					if (yellowThreats.get(positionIndex)) {
+					if (j % 2 == 0) { // Odd threat
 						if (!yellowOddThreat && !redEvenThreat) {
 							yellowOddThreat = true;
 							if (!redOddThreat) {
@@ -138,28 +156,47 @@ public class Position implements BoardPosition {
 								yellowOddAboveRedOddThreats += 1;
 							}
 						}
-					}
-				} else { // Even threat
-					if (redThreats.get(positionIndex)) {
-						redEvenThreat = true;
+					} else { // Even threat
+							yellowEvenThreats = true;
+							yellowEvenThreat = true;
 					}
 					
-					if (yellowThreats.get(positionIndex)) {
-						yellowEvenThreats = true;
-						yellowEvenThreat = true;
+					if (existingYellowThreat && lowestRedThreat >= j) {
+						lowestYellowDoubleThreat = Math.min(lowestYellowDoubleThreat, (j-1-andBitSets(pieces, PositionConsts.COLUMNS[i]).cardinality()));
+					} else {
+						existingYellowThreat = true;
 					}
-				}				
+				} else {
+					existingYellowThreat = false;
+				}
+			}
+		}
+		
+		if (lowestRedDoubleThreat == PositionConsts.HEIGHT && lowestYellowDoubleThreat == PositionConsts.HEIGHT )
+			doubleThreat = DoubleThreat.NONE;
+		else if (turn == Turn.RED) {
+			if (lowestRedDoubleThreat <= lowestYellowDoubleThreat) {
+				doubleThreat = DoubleThreat.RED;
+			} else {
+				doubleThreat = DoubleThreat.YELLOW;
+			}
+		} else {
+			if (lowestYellowDoubleThreat <= lowestRedDoubleThreat) {
+				doubleThreat = DoubleThreat.YELLOW;
+			} else {
+				doubleThreat = DoubleThreat.RED;
 			}
 		}
 
+		// TODO Fix when 2 yellow odd threats intersect two red odd threats
 		if (!yellowEvenThreats &&
-		   (yellowOddThreats >= redOddThreats) &&
-		   (redOddThreats >= yellowOddThreats - 1) &&
-		   (redOddAboveYellowOddThreats == 0)) { 
+				(yellowOddThreats >= redOddThreats) &&
+				(redOddThreats >= yellowOddThreats - 1) &&
+				(redOddAboveYellowOddThreats == 0)) { 
 			zugwang = Zugwang.NONE;
 		} else if (((redOddThreats > yellowOddThreats) && 
-				  (redOddThreats + redOddAboveYellowOddThreats >= yellowOddThreats + yellowOddAboveRedOddThreats))
-			   || (redOddThreats + redOddAboveYellowOddThreats > yellowOddThreats + yellowOddAboveRedOddThreats)) {
+				(redOddThreats + redOddAboveYellowOddThreats >= yellowOddThreats + yellowOddAboveRedOddThreats))
+				|| (redOddThreats + redOddAboveYellowOddThreats > yellowOddThreats + yellowOddAboveRedOddThreats)) {
 			zugwang = Zugwang.RED;
 		} else {
 			zugwang = Zugwang.YELLOW;
@@ -177,7 +214,7 @@ public class Position implements BoardPosition {
 	public Position playMove(Integer column) {
 		int row = getNextEmptyRow(pieces, column);
 		if (row < PositionConsts.HEIGHT) {
-			return createNewPosition(column, row);
+			return getNewPosition(column, row);
 		} else {
 			return null;
 		}
@@ -188,24 +225,32 @@ public class Position implements BoardPosition {
 		for (int column : PositionConsts.columnIndices) {
 			int row = getNextEmptyRow(pieces, column);
 			if (row < PositionConsts.HEIGHT) {
-				possibleMoves.add(createNewPosition(column, row));
+				possibleMoves.add(getNewPosition(column, row));
 			}
 		}
 		return possibleMoves;
 	}
 
-	private Position createNewPosition(int moveColumn, int moveRow) {
+	private Position getNewPosition(int moveColumn, int moveRow) {
+		int positionIndex = getPositionIndex(moveColumn, moveRow);
+		BitSet newZobristHash = ZobristHashing.getMoveHash(zobristHash, turn, positionIndex);
+		Position newPosition = ZobristHashing.getPosition(newZobristHash);
+		if (newPosition != null)
+			return newPosition;
+
 		BitSet newRedPieces = (BitSet) redPieces.clone();
 		BitSet newYellowPieces = (BitSet) yellowPieces.clone();
 		Turn newTurn;
 		if (turn == Turn.RED) {
-			newRedPieces.set(getPositionIndex(moveColumn, moveRow));
+			newRedPieces.set(positionIndex);
 			newTurn = Turn.YELLOW;
 		} else {
-			newYellowPieces.set(getPositionIndex(moveColumn, moveRow));
+			newYellowPieces.set(positionIndex);
 			newTurn = Turn.RED;
 		}
-		return new Position(newRedPieces, newYellowPieces, newTurn);
+		newPosition = new Position(newRedPieces, newYellowPieces, newTurn, newZobristHash);
+		ZobristHashing.putPosition(newZobristHash, newPosition);
+		return newPosition;
 	}
 
 	private int getNextEmptyRow(BitSet pieces, int column) {
@@ -236,8 +281,9 @@ public class Position implements BoardPosition {
 
 	@Override
 	public String toString() {
-		return String.format("Value: %d  Zugwang: %s  Threats: %d, %d  Minor Threats: %d, %d  Blockers: %d %d",
-				positionValue, 
+		return String.format("Value: %d  DoubleThreat: %s  Zugwang: %s  Threats: %d, %d  Minor Threats: %d, %d  Blockers: %d %d",
+				positionValue,
+				doubleThreat,
 				zugwang, 
 				redThreats.cardinality(), yellowThreats.cardinality(),
 				redMinorThreatCount, yellowMinorThreatCount,
