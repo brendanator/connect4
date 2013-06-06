@@ -51,8 +51,9 @@ public class Position implements BoardPosition {
 			positionValue =  0
 			+ doubleThreat.score()
 			+ zugwang.score()
-			+ cardinality(redThreats)*100 - cardinality(yellowThreats)*100
 			// TODO Only include horizontal and diagonal threats?
+			+ cardinality(redThreats)*100 - cardinality(yellowThreats)*100
+			// TODO Ignore this entirely? 
 			+ redMinorThreatCount*10 - yellowMinorThreatCount*10 
 			+ redBlockers - yellowBlockers;
 		}
