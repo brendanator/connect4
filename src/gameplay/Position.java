@@ -3,21 +3,20 @@ package gameplay;
 import gui.BoardPosition;
 
 import java.util.ArrayList;
-import java.util.BitSet;
 
 public class Position implements BoardPosition {
-	private BitSet zobristHash;
-	private BitSet pieces;
-	private BitSet redPieces;
-	private BitSet yellowPieces;
+	private long zobristHash;
+	private long pieces;
+	private long redPieces;
+	private long yellowPieces;
 	private Turn turn;
 	private int positionValue;
-	private BitSet redWin = new BitSet(PositionConsts.SIZE);
-	private BitSet yellowWin = new BitSet(PositionConsts.SIZE);
+	private long redWin = 0;
+	private long yellowWin = 0;
 	private DoubleThreat doubleThreat = DoubleThreat.NONE;
 	private Zugwang zugwang = Zugwang.NONE;
-	private BitSet redThreats = new BitSet(PositionConsts.SIZE);
-	private BitSet yellowThreats = new BitSet(PositionConsts.SIZE);
+	private long redThreats = 0;
+	private long yellowThreats = 0;
 	private int redMinorThreatCount = 0;
 	private int yellowMinorThreatCount = 0;
 	private int redBlockers = 0;
@@ -25,30 +24,34 @@ public class Position implements BoardPosition {
 
 
 	public Position() {
-		this(new BitSet(PositionConsts.SIZE), new BitSet(PositionConsts.SIZE), Turn.RED, new BitSet(ZobristHashing.ZOBRIST_SIZE));
+		this(0, 0, Turn.RED, 0);
 	}
 
-	public Position(BitSet redPieces, BitSet yellowPieces, Turn turn, BitSet zobristHash) {
-		this.pieces = orBitSets(redPieces, yellowPieces);
+	public Position(long redPieces, long yellowPieces, Turn turn, long zobristHash) {
+		this.pieces = redPieces | yellowPieces;
 		this.redPieces = redPieces;
 		this.yellowPieces = yellowPieces;
 		this.turn = turn;
 		this.zobristHash = zobristHash;
 		evaluatePosition();
 	}
+	
+	public long zobristHashCode() {
+		return zobristHash;
+	}
 
 	private void evaluatePosition() {
 		analyzePosition();
 
-		if (redWin.cardinality() > 0) {
+		if (redWin > 0) {
 			positionValue =  PositionConsts.WIN_SCORE;
-		} else if (yellowWin.cardinality() > 0) {
+		} else if (yellowWin > 0) {
 			positionValue =  -PositionConsts.WIN_SCORE;
 		} else {
 			positionValue =  0
 			+ doubleThreat.score()
 			+ zugwang.score()
-			+ redThreats.cardinality()*100 - yellowThreats.cardinality()*100
+			+ cardinality(redThreats)*100 - cardinality(yellowThreats)*100
 			// TODO Only include horizontal and diagonal threats?
 			+ redMinorThreatCount*10 - yellowMinorThreatCount*10 
 			+ redBlockers - yellowBlockers;
@@ -56,20 +59,20 @@ public class Position implements BoardPosition {
 	}
 
 	private void analyzePosition() {
-		BitSet redFourInARowChances = new BitSet(PositionConsts.SIZE);
-		BitSet yellowFourInARowChances = new BitSet(PositionConsts.SIZE);
+		long redFourInARowChances = 0;
+		long yellowFourInARowChances = 0;
 
-		for (BitSet fourInARow : PositionConsts.FOURS_IN_A_ROW) {
-			int redMatches = andBitSets(redPieces, fourInARow).cardinality();
-			int yellowMatches = andBitSets(yellowPieces, fourInARow).cardinality();
+		for (long fourInARow : PositionConsts.FOURS_IN_A_ROW) {
+			int redMatches = cardinality(redPieces & fourInARow);
+			int yellowMatches = cardinality(yellowPieces & fourInARow);
 			if (redMatches == 4) {
 				redWin = fourInARow;
 			} else if (yellowMatches == 4) {
 				yellowWin = fourInARow;
 			} else if (redMatches == 3 && yellowMatches == 0) {
-				redFourInARowChances.or(fourInARow);
+				redFourInARowChances |= fourInARow;
 			} else if (yellowMatches == 3 && redMatches == 0) {
-				yellowFourInARowChances.or(fourInARow);
+				yellowFourInARowChances |= fourInARow;
 			} else if (redMatches == 2 && yellowMatches == 0) {
 				redMinorThreatCount += 1;
 			} else if (yellowMatches == 2 && redMatches == 0) {
@@ -84,18 +87,30 @@ public class Position implements BoardPosition {
 			}
 		}
 
-		redThreats = xorBitSets(redFourInARowChances, andBitSets(redPieces, redFourInARowChances));
-		yellowThreats = xorBitSets(yellowFourInARowChances, andBitSets(yellowPieces, yellowFourInARowChances));
+		redThreats = redFourInARowChances ^ (redPieces & redFourInARowChances);
+		yellowThreats = yellowFourInARowChances ^ (yellowPieces & yellowFourInARowChances);
 
 		analyzeThreats();
+	}
+
+	private int cardinality(long pieces) {
+		int count = 0;
+		while (pieces > 0) {
+			if ((pieces & 1) > 0) {
+				count++;
+			}
+			pieces = pieces >> 1;
+		}
+		return count;
 	}
 
 	// Opposing odds above evens and evens above odds can be ignored
 	// Red odd un-opposed by yellow odd threat will win
 	// Red even threats can be ignored
 	// Repeating threats can be ignored e.g. Red odd above red odd = red odd
-	// A red and yellow odd threat in same location can be treated as a red odd threat with a yellow odd threat above
+	// A red and yellow odd threat in same location can be treated as a red odd threat with a yellow odd threat above - FALSE
 	private void analyzeThreats() {
+		int sharedOddThreats = 0;
 		int redOddThreats = 0;
 		int yellowOddThreats = 0;
 		int redOddAboveYellowOddThreats = 0;
@@ -116,9 +131,17 @@ public class Position implements BoardPosition {
 			boolean existingYellowThreat = false;
 
 			for (int j = 0; j < PositionConsts.HEIGHT; j++) {
-				int positionIndex = getPositionIndex(i, j);
+				long positionIndex = getPositionKey(i, j);
 
-				if (redThreats.get(positionIndex)) {
+				
+				if (((redThreats & positionIndex) > 0) && ((yellowThreats & positionIndex) > 0)) {
+					if (lowestRedThreat == PositionConsts.HEIGHT && lowestYellowThreat == PositionConsts.HEIGHT) {
+						sharedOddThreats += 1;
+						break;
+					}
+				}
+				
+				if ((redThreats & positionIndex) > 0) {
 					lowestRedThreat = Math.min(lowestRedThreat, j);
 
 					if (j % 2 == 0) { // Odd threat
@@ -135,7 +158,7 @@ public class Position implements BoardPosition {
 					}
 
 					if (existingRedThreat && lowestYellowThreat >= j) {
-						lowestRedDoubleThreat = Math.min(lowestRedDoubleThreat, (j-1-andBitSets(pieces, PositionConsts.COLUMNS[i]).cardinality()));
+						lowestRedDoubleThreat = Math.min(lowestRedDoubleThreat, (j-1-cardinality(pieces & PositionConsts.COLUMNS[i])));
 					} else {
 						existingRedThreat = true;
 					}
@@ -144,7 +167,7 @@ public class Position implements BoardPosition {
 				}
 
 
-				if (yellowThreats.get(positionIndex)) {
+				if ((yellowThreats & positionIndex) > 0) {
 					lowestYellowThreat = Math.min(lowestYellowThreat, j);
 					
 					if (j % 2 == 0) { // Odd threat
@@ -162,7 +185,7 @@ public class Position implements BoardPosition {
 					}
 					
 					if (existingYellowThreat && lowestRedThreat >= j) {
-						lowestYellowDoubleThreat = Math.min(lowestYellowDoubleThreat, (j-1-andBitSets(pieces, PositionConsts.COLUMNS[i]).cardinality()));
+						lowestYellowDoubleThreat = Math.min(lowestYellowDoubleThreat, (j-1-cardinality(pieces & PositionConsts.COLUMNS[i])));
 					} else {
 						existingYellowThreat = true;
 					}
@@ -188,13 +211,23 @@ public class Position implements BoardPosition {
 			}
 		}
 
+		for (int i = 0; i < sharedOddThreats; i++) {
+			if (i % 2 == 0) {
+				redOddThreats += 1;
+				yellowOddAboveRedOddThreats += 1;
+			} else {
+				redOddAboveYellowOddThreats += 1;
+				yellowOddThreats += 1;				
+			}
+		}
+		
 		// TODO Fix when 2 yellow odd threats intersect two red odd threats
 		if (!yellowEvenThreats &&
 				(yellowOddThreats >= redOddThreats) &&
 				(redOddThreats >= yellowOddThreats - 1) &&
 				(redOddAboveYellowOddThreats == 0)) { 
 			zugwang = Zugwang.NONE;
-		} else if (((redOddThreats > yellowOddThreats) && 
+		} else if ((((redOddThreats > yellowOddThreats) || (yellowOddThreats == 1 && yellowOddAboveRedOddThreats == 0)) && 
 				(redOddThreats + redOddAboveYellowOddThreats >= yellowOddThreats + yellowOddAboveRedOddThreats))
 				|| (redOddThreats + redOddAboveYellowOddThreats > yellowOddThreats + yellowOddAboveRedOddThreats)) {
 			zugwang = Zugwang.RED;
@@ -208,7 +241,7 @@ public class Position implements BoardPosition {
 	}
 
 	public boolean isGameOver() {
-		return Math.abs(positionValue) == PositionConsts.WIN_SCORE || pieces.cardinality() == PositionConsts.SIZE;
+		return Math.abs(positionValue) == PositionConsts.WIN_SCORE || cardinality(pieces) == PositionConsts.SIZE;
 	}
 
 	public Position playMove(Integer column) {
@@ -232,20 +265,19 @@ public class Position implements BoardPosition {
 	}
 
 	private Position getNewPosition(int moveColumn, int moveRow) {
-		int positionIndex = getPositionIndex(moveColumn, moveRow);
-		BitSet newZobristHash = ZobristHashing.getMoveHash(zobristHash, turn, positionIndex);
+		long newZobristHash = ZobristHashing.getMoveHash(zobristHash, turn, moveColumn, moveRow);
 		Position newPosition = ZobristHashing.getPosition(newZobristHash);
 		if (newPosition != null)
 			return newPosition;
 
-		BitSet newRedPieces = (BitSet) redPieces.clone();
-		BitSet newYellowPieces = (BitSet) yellowPieces.clone();
+		long newRedPieces = redPieces; 
+		long newYellowPieces = yellowPieces;
 		Turn newTurn;
 		if (turn == Turn.RED) {
-			newRedPieces.set(positionIndex);
+			newRedPieces |= getPositionKey(moveColumn, moveRow);
 			newTurn = Turn.YELLOW;
 		} else {
-			newYellowPieces.set(positionIndex);
+			newYellowPieces |= getPositionKey(moveColumn, moveRow);
 			newTurn = Turn.RED;
 		}
 		newPosition = new Position(newRedPieces, newYellowPieces, newTurn, newZobristHash);
@@ -253,30 +285,12 @@ public class Position implements BoardPosition {
 		return newPosition;
 	}
 
-	private int getNextEmptyRow(BitSet pieces, int column) {
-		return andBitSets(pieces, PositionConsts.COLUMNS[column]).cardinality();
+	private int getNextEmptyRow(long pieces, int column) {
+		return cardinality(pieces & PositionConsts.COLUMNS[column]);
 	}
 
-	private int getPositionIndex(int column, int row) {
-		return column + row*PositionConsts.WIDTH;
-	}
-
-	private BitSet andBitSets(BitSet bitSet1, BitSet bitSet2) {
-		BitSet result = (BitSet) bitSet1.clone();
-		result.and(bitSet2);
-		return result;
-	}
-
-	private BitSet orBitSets(BitSet bitSet1, BitSet bitSet2) {
-		BitSet result = (BitSet) bitSet1.clone();
-		result.or(bitSet2);
-		return result;
-	}
-
-	private BitSet xorBitSets(BitSet bitSet1, BitSet bitSet2) {
-		BitSet result = (BitSet) bitSet1.clone();
-		result.xor(bitSet2);
-		return result;
+	private long getPositionKey(int column, int row) {
+		return (long) Math.pow(2, (column + row*PositionConsts.WIDTH));
 	}
 
 	@Override
@@ -285,29 +299,29 @@ public class Position implements BoardPosition {
 				positionValue,
 				doubleThreat,
 				zugwang, 
-				redThreats.cardinality(), yellowThreats.cardinality(),
+				cardinality(redThreats), cardinality(yellowThreats),
 				redMinorThreatCount, yellowMinorThreatCount,
 				redBlockers, yellowBlockers);
 	}
 
 	@Override
 	public boolean isRed(Integer column, Integer row) {
-		return redPieces.get(getPositionIndex(column, row));
+		return (redPieces & getPositionKey(column, row)) > 0;
 	}
 
 	@Override
 	public boolean isYellow(Integer column, Integer row) {
-		return yellowPieces.get(getPositionIndex(column, row));
+		return (yellowPieces & getPositionKey(column, row)) > 0;
 	}
 
 	@Override
 	public boolean isRedWin(Integer column, Integer row) {
-		return redWin.get(getPositionIndex(column, row));
+		return (redWin & getPositionKey(column, row)) > 0;
 	}
 
 	@Override
 	public boolean isYellowWin(Integer column, Integer row) {
-		return yellowWin.get(getPositionIndex(column, row));
+		return (yellowWin & getPositionKey(column, row)) > 0;
 	}
 
 }

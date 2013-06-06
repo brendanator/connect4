@@ -6,6 +6,8 @@ import java.util.List;
 
 public class Play {
 	public Position findNextMove(Position position, Difficulty difficulty) {
+		ZobristHashing.clear();
+		
 		List<Position> positions = position.getPossibleMoves();
 		Collections.shuffle(positions);
 		

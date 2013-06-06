@@ -1,45 +1,44 @@
 package gameplay;
 
 import java.util.ArrayList;
-import java.util.BitSet;
 
 public class PositionConsts {
 	public static final int WIDTH = 7;
 	public static final int HEIGHT = 6;
 	public static final int SIZE = WIDTH*HEIGHT;
-	public static final int WIN_SCORE = 10000;
-	public static final int ZUGWANG_SCORE = 5000;
-	public static final int DOUBLE_THREAT_SCORE = 7000;
-	public static final BitSet[] COLUMNS = createColumns();
-	public static final BitSet[] ROWS = createRows();
-	public static final ArrayList<BitSet> FOURS_IN_A_ROW = createFoursInARow();
-	public static final ArrayList<Integer> columnIndices = createColumnIndices();
+	public static final int WIN_SCORE = 2000;
+	public static final int ZUGWANG_SCORE = 300;
+	public static final int DOUBLE_THREAT_SCORE = 600;
+	public static final long[] COLUMNS = createColumns();
+	public static final long[] ROWS = createRows();
+	public static final long[] FOURS_IN_A_ROW = createFoursInARow();
+	public static final int[] columnIndices = createColumnIndices();
 
-	private static BitSet[] createColumns() {
-		BitSet[] columns = new BitSet[WIDTH];
+	private static long[] createColumns() {
+		long[] columns = new long[WIDTH];
 		for (int i = 0; i < WIDTH; i++) {
-			BitSet column = new BitSet(SIZE);
+			long column = 0;
 			for (int j = 0; j < HEIGHT; j++) {
-				column.set(getPositionIndex(i, j));
+				column += getPositionKey(i, j);
 			}
 			columns[i] = column;
 		}
 		return columns;
 	}
 
-	private static BitSet[] createRows() {
-        BitSet[] columns = new BitSet[HEIGHT];
+	private static long[] createRows() {
+        long[] rows = new long[HEIGHT];
         for (int i = 0; i < HEIGHT; i++) {
-            BitSet column = new BitSet(SIZE);
+            long row = 0;
             for (int j = 0; j < WIDTH; j++) {
-                column.set(getPositionIndex(j, i));
+				row += getPositionKey(i, j);
             }
-            columns[i] = column;
+            rows[i] = row;
         }
-        return columns;
+        return rows;
     }
 
-	private static ArrayList<Integer> createColumnIndices() {		
+	private static int[] createColumnIndices() {		
 		ArrayList<Integer> columnIndices = new ArrayList<Integer>();
 		int middleColumn = WIDTH/2;
 		columnIndices.add(middleColumn);
@@ -47,18 +46,24 @@ public class PositionConsts {
 			columnIndices.add(i + middleColumn);
 			columnIndices.add(-i + middleColumn);
 		}
-		return columnIndices;
+		int[] result = new int[WIDTH];
+		
+		for (int i = 0; i < columnIndices.size(); i++) {
+			result[i] = columnIndices.get(i);
+		}
+		
+		return result;
 	}
 
-	private static ArrayList<BitSet> createFoursInARow() {
-		ArrayList<BitSet> foursInARow = new ArrayList<BitSet>();
+	private static long[] createFoursInARow() {
+		ArrayList<Long> foursInARow = new ArrayList<Long>();
 
 		// Add vertical fours in a row
 		for (int i = 0; i < WIDTH; i++) {
 			for (int j = 0; j < HEIGHT-3; j++) {
-				BitSet fourInARow = new BitSet(SIZE);
+				long fourInARow = 0;
 				for (int k = 0; k < 4; k++) {
-					fourInARow.set(getPositionIndex(i, j+k));
+					fourInARow += getPositionKey(i, j+k);
 				}
 				foursInARow.add(fourInARow);
 			}
@@ -67,9 +72,9 @@ public class PositionConsts {
 		// Add horizontal fours in a row
 		for (int i = 0; i < HEIGHT; i++) {
 			for (int j = 0; j < WIDTH-3; j++) {
-				BitSet fourInARow = new BitSet(SIZE);
+				long fourInARow = 0;
 				for (int k = 0; k < 4; k++) {
-					fourInARow.set(getPositionIndex(j+k, i));
+					fourInARow += getPositionKey(j+k, i);
 				}
 				foursInARow.add(fourInARow);
 			}
@@ -78,22 +83,26 @@ public class PositionConsts {
 		// Add diagonal fours in a row
 		for (int i = 0; i < WIDTH-3; i++) {
 			for (int j = 0; j < HEIGHT-3; j++) {
-				BitSet fourInARow1 = new BitSet(SIZE);
-				BitSet fourInARow2 = new BitSet(SIZE);
+				long fourInARow1 = 0;
+				long fourInARow2 = 0;
 				for (int k = 0; k < 4; k++) {
-					fourInARow1.set(getPositionIndex(i+k, j+k));
-					fourInARow2.set(getPositionIndex(i+k, j+3-k));
+					fourInARow1 += getPositionKey(i+k, j+k);
+					fourInARow2 += getPositionKey(i+k, j+3-k);
 				}
 				foursInARow.add(fourInARow1);
 				foursInARow.add(fourInARow2);
 			}
 		}
 
-		return foursInARow;
+		long[] result = new long[foursInARow.size()];
+		for (int i = 0; i < foursInARow.size(); i++) {
+			result[i] = foursInARow.get(i);
+		}
+		return result;
 	}
 			
-	private static int getPositionIndex(int column, int row) {
-		return column + row*WIDTH;
+	private static long getPositionKey(int column, int row) {
+		return (long) Math.pow(2, (column + row*WIDTH));
 	}
 	
 }

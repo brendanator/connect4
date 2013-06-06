@@ -1,49 +1,44 @@
 package gameplay;
 
-import java.util.BitSet;
 import java.util.HashMap;
 import java.util.Random;
 
 public class ZobristHashing {
 	public static final int ZOBRIST_SIZE = 64;
 
-	private static final BitSet[] RED_ZOBRIST_POSITIONS = createZobristPositions();
-	private static final BitSet[] YELLOW_ZOBRIST_POSITIONS = createZobristPositions();
-	private static HashMap<BitSet, Position> positions = new HashMap<BitSet, Position>(); 
+	private static final long[] RED_ZOBRIST_POSITIONS = createZobristPositions();
+	private static final long[] YELLOW_ZOBRIST_POSITIONS = createZobristPositions();
+	private static HashMap<Long, Position> positions = new HashMap<Long, Position>(); 
 
 	public static void clear() {
 		positions.clear();
 	}
 	
-	private static BitSet[] createZobristPositions() {
-		BitSet[] zobristPositions = new BitSet[PositionConsts.HEIGHT * PositionConsts.WIDTH];
+	private static long[] createZobristPositions() {
 		Random random = new Random();
+		
+		long[] zobristPositions = new long[PositionConsts.HEIGHT * PositionConsts.WIDTH];
 		for (int i = 0; i < zobristPositions.length; i++) {
-			BitSet bitSet = new BitSet(ZOBRIST_SIZE);
-			for (int j = 0; j < bitSet.size(); j++) {
-				bitSet.set(j, random.nextBoolean());
-			}
-			zobristPositions[i] = bitSet;
+			zobristPositions[i] = random.nextLong();
 		}
+		
 		return zobristPositions;
 	}
 
-	public static BitSet getMoveHash(BitSet zobristHash, Turn turn,
-			int positionIndex) {
-		BitSet moveHash = (BitSet) zobristHash.clone();
+	public static long getMoveHash(long zobristHash, Turn turn, int moveColumn, int moveRow) {
 		if (turn == Turn.RED) {
-			moveHash.xor(RED_ZOBRIST_POSITIONS[positionIndex]);
+			return zobristHash ^ RED_ZOBRIST_POSITIONS[moveColumn + moveRow*PositionConsts.WIDTH];
 		} else {
-			moveHash.xor(YELLOW_ZOBRIST_POSITIONS[positionIndex]);
+			return zobristHash ^ YELLOW_ZOBRIST_POSITIONS[moveColumn + moveRow*PositionConsts.WIDTH];
 		}
-		return moveHash;
 	}
 	
-	public static Position getPosition(BitSet zobristHash) {
-		return positions.get(zobristHash);
+	public static Position getPosition(long newZobristHash) {
+		return positions.get(newZobristHash);
 	}
 
-	public static void putPosition(BitSet zobristHash, Position position) {
+	public static void putPosition(long zobristHash, Position position) {
 		positions.put(zobristHash, position);
 	}
+
 }
