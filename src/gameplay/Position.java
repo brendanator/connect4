@@ -63,9 +63,83 @@ public class Position implements BoardPosition {
 		long redFourInARowChances = 0;
 		long yellowFourInARowChances = 0;
 
-		for (long fourInARow : PositionConsts.FOURS_IN_A_ROW) {
+		for (long fourInARow : PositionConsts.VERTICAL_FOURS_IN_A_ROW) {
 			int redMatches = cardinality(redPieces & fourInARow);
 			int yellowMatches = cardinality(yellowPieces & fourInARow);
+			
+			if (redMatches == 4) {
+				redWin = fourInARow;
+			} else if (yellowMatches == 4) {
+				yellowWin = fourInARow;
+			} else if (redMatches == 3 && yellowMatches == 0) {
+				redFourInARowChances |= fourInARow;
+			} else if (yellowMatches == 3 && redMatches == 0) {
+				yellowFourInARowChances |= fourInARow;
+			} 
+		}
+
+		for (int i = 0; i < PositionConsts.HORIZONTAL_ODD_FOURS_IN_A_ROW.length; i++) {
+			long fourInARow = PositionConsts.HORIZONTAL_ODD_FOURS_IN_A_ROW[i];
+			int row = (i % 4) * 2;
+
+			int redMatches = cardinality(redPieces & fourInARow);
+			int yellowMatches = cardinality(yellowPieces & fourInARow);
+			
+			if (redMatches == 4) {
+				redWin = fourInARow;
+			} else if (yellowMatches == 4) {
+				yellowWin = fourInARow;
+			} else if (redMatches == 3 && yellowMatches == 0) {
+				redFourInARowChances |= fourInARow;
+			} else if (yellowMatches == 3 && redMatches == 0) {
+				yellowFourInARowChances |= fourInARow;
+			} else if (redMatches == 2 && yellowMatches == 0) {
+				redMinorThreatCount += 1;
+			} else if (yellowMatches == 2 && redMatches == 0) {
+				yellowMinorThreatCount += 1;
+			} 
+
+			if (redMatches >= 1) {
+				redBlockers++;
+			} 
+			if (yellowMatches >= 1) {
+				yellowBlockers += 8 - row;
+			}
+		}
+
+		for (int i = 0; i < PositionConsts.HORIZONTAL_EVEN_FOURS_IN_A_ROW.length; i++) {
+			long fourInARow = PositionConsts.HORIZONTAL_EVEN_FOURS_IN_A_ROW[i];
+			int row = ((i % 4) * 2) + 1;
+			
+			int redMatches = cardinality(redPieces & fourInARow);
+			int yellowMatches = cardinality(yellowPieces & fourInARow);
+			
+			if (redMatches == 4) {
+				redWin = fourInARow;
+			} else if (yellowMatches == 4) {
+				yellowWin = fourInARow;
+			} else if (redMatches == 3 && yellowMatches == 0) {
+				redFourInARowChances |= fourInARow;
+			} else if (yellowMatches == 3 && redMatches == 0) {
+				yellowFourInARowChances |= fourInARow;
+			} else if (redMatches == 2 && yellowMatches == 0) {
+				redMinorThreatCount += 1;
+			} else if (yellowMatches == 2 && redMatches == 0) {
+				yellowMinorThreatCount += 1;
+			} 
+
+			if (redMatches >= 1) {
+				redBlockers += 8 - row;
+			} 
+			if (yellowMatches >= 1) {
+				yellowBlockers++;
+			}
+		}
+
+		for (long fourInARow : PositionConsts.DIAGONAL_FOURS_IN_A_ROW) {
+			int redMatches = cardinality(redPieces & fourInARow);
+			int yellowMatches = cardinality(yellowPieces & fourInARow);
+			
 			if (redMatches == 4) {
 				redWin = fourInARow;
 			} else if (yellowMatches == 4) {
@@ -87,7 +161,7 @@ public class Position implements BoardPosition {
 				yellowBlockers++;
 			}
 		}
-
+		
 		redThreats = redFourInARowChances ^ (redPieces & redFourInARowChances);
 		yellowThreats = yellowFourInARowChances ^ (yellowPieces & yellowFourInARowChances);
 
@@ -95,14 +169,7 @@ public class Position implements BoardPosition {
 	}
 
 	private int cardinality(long pieces) {
-		int count = 0;
-		while (pieces > 0) {
-			if ((pieces & 1) > 0) {
-				count++;
-			}
-			pieces = pieces >> 1;
-		}
-		return count;
+		return Long.bitCount(pieces);
 	}
 
 	// Opposing odds above evens and evens above odds can be ignored
@@ -133,19 +200,25 @@ public class Position implements BoardPosition {
 
 			for (int j = 0; j < PositionConsts.HEIGHT; j++) {
 				long positionIndex = getPositionKey(i, j);
-
+				boolean redThreat = (redThreats & positionIndex) > 0;
+				boolean yellowThreat = (yellowThreats & positionIndex) > 0;
+				boolean oddRow = j % 2 == 0;
 				
-				if (((redThreats & positionIndex) > 0) && ((yellowThreats & positionIndex) > 0)) {
+				if (redThreat && yellowThreat) {
 					if (lowestRedThreat == PositionConsts.HEIGHT && lowestYellowThreat == PositionConsts.HEIGHT) {
-						sharedOddThreats += 1;
+						if (oddRow) {
+							sharedOddThreats += 1;
+						} else {
+							yellowEvenThreats = true;
+						}
 						break;
 					}
 				}
 				
-				if ((redThreats & positionIndex) > 0) {
+				if (redThreat) {
 					lowestRedThreat = Math.min(lowestRedThreat, j);
 
-					if (j % 2 == 0) { // Odd threat
+					if (oddRow) {
 						if (!redOddThreat && !yellowEvenThreat) {
 							redOddThreat = true;
 							if (!yellowOddThreat) {
@@ -167,11 +240,10 @@ public class Position implements BoardPosition {
 					existingRedThreat = false;
 				}
 
-
-				if ((yellowThreats & positionIndex) > 0) {
+				if (yellowThreat) {
 					lowestYellowThreat = Math.min(lowestYellowThreat, j);
 					
-					if (j % 2 == 0) { // Odd threat
+					if (oddRow) { // Odd threat
 						if (!yellowOddThreat && !redEvenThreat) {
 							yellowOddThreat = true;
 							if (!redOddThreat) {
@@ -192,6 +264,10 @@ public class Position implements BoardPosition {
 					}
 				} else {
 					existingYellowThreat = false;
+				}
+
+				if (redThreat && yellowThreat) {
+					break;
 				}
 			}
 		}
