@@ -1,5 +1,6 @@
 package gameplay;
 
+import static gameplay.PositionUtils.*;
 import java.util.ArrayList;
 
 public class PositionConsts {
@@ -142,8 +143,4 @@ public class PositionConsts {
 		return result;
 	}
 
-	private static long getPositionKey(int column, int row) {
-		return (long) Math.pow(2, (column + row*WIDTH));
-	}
-	
 }

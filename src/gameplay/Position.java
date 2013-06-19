@@ -1,7 +1,8 @@
 package gameplay;
 
-import gui.BoardPosition;
+import static gameplay.PositionUtils.*;
 
+import gui.BoardPosition;
 import java.util.ArrayList;
 
 public class Position implements BoardPosition {
@@ -13,6 +14,7 @@ public class Position implements BoardPosition {
 	private int positionValue;
 	private long redWin = 0;
 	private long yellowWin = 0;
+	
 	private DoubleThreat doubleThreat = DoubleThreat.NONE;
 	private Zugwang zugwang = Zugwang.NONE;
 	private long redThreats = 0;
@@ -21,7 +23,6 @@ public class Position implements BoardPosition {
 	private int yellowMinorThreatCount = 0;
 	private int redBlockers = 0;
 	private int yellowBlockers = 0;
-
 
 	public Position() {
 		this(0, 0, Turn.RED, 0);
@@ -168,15 +169,6 @@ public class Position implements BoardPosition {
 		analyzeThreats();
 	}
 
-	private int cardinality(long pieces) {
-		return Long.bitCount(pieces);
-	}
-
-	// Opposing odds above evens and evens above odds can be ignored
-	// Red odd un-opposed by yellow odd threat will win
-	// Red even threats can be ignored
-	// Repeating threats can be ignored e.g. Red odd above red odd = red odd
-	// A red and yellow odd threat in same location can be treated as a red odd threat with a yellow odd threat above - FALSE
 	private void analyzeThreats() {
 		int sharedOddThreats = 0;
 		int redOddThreats = 0;
@@ -243,7 +235,7 @@ public class Position implements BoardPosition {
 				if (yellowThreat) {
 					lowestYellowThreat = Math.min(lowestYellowThreat, j);
 					
-					if (oddRow) { // Odd threat
+					if (oddRow) { 
 						if (!yellowOddThreat && !redEvenThreat) {
 							yellowOddThreat = true;
 							if (!redOddThreat) {
@@ -272,6 +264,15 @@ public class Position implements BoardPosition {
 			}
 		}
 		
+		analyzeDoubleThreat(lowestRedDoubleThreat, lowestYellowDoubleThreat);
+
+		analyzeZugwang(sharedOddThreats, redOddThreats, yellowOddThreats,
+				redOddAboveYellowOddThreats, yellowOddAboveRedOddThreats,
+				yellowEvenThreats);
+	}
+
+	private void analyzeDoubleThreat(int lowestRedDoubleThreat,
+			int lowestYellowDoubleThreat) {
 		if (lowestRedDoubleThreat == PositionConsts.HEIGHT && lowestYellowDoubleThreat == PositionConsts.HEIGHT )
 			doubleThreat = DoubleThreat.NONE;
 		else if (turn == Turn.RED) {
@@ -287,7 +288,12 @@ public class Position implements BoardPosition {
 				doubleThreat = DoubleThreat.RED;
 			}
 		}
+	}
 
+	private void analyzeZugwang(int sharedOddThreats, int redOddThreats,
+			int yellowOddThreats, int redOddAboveYellowOddThreats,
+			int yellowOddAboveRedOddThreats, boolean yellowEvenThreats) {
+		
 		for (int i = 0; i < sharedOddThreats; i++) {
 			if (i % 2 == 0) {
 				redOddThreats += 1;
@@ -298,7 +304,6 @@ public class Position implements BoardPosition {
 			}
 		}
 		
-		// TODO Fix when 2 yellow odd threats intersect two red odd threats
 		if (!yellowEvenThreats &&
 				(yellowOddThreats >= redOddThreats) &&
 				(redOddThreats >= yellowOddThreats - 1) &&
@@ -364,10 +369,6 @@ public class Position implements BoardPosition {
 
 	private int getNextEmptyRow(long pieces, int column) {
 		return cardinality(pieces & PositionConsts.COLUMNS[column]);
-	}
-
-	private long getPositionKey(int column, int row) {
-		return (long) Math.pow(2, (column + row*PositionConsts.WIDTH));
 	}
 
 	@Override
