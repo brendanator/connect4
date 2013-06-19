@@ -1,6 +1,6 @@
 package gui;
 
-public interface BoardPosition {
+public interface BoardDisplay {
     public boolean isRed(Integer column, Integer row);
     public boolean isYellow(Integer column, Integer row);
     public boolean isRedWin(Integer column, Integer row);

@@ -49,7 +49,7 @@ public class Board extends Panel {
         return square;
     }
 
-    public void showPosition(BoardPosition position) {
+    public void showPosition(BoardDisplay position) {
         for( int squareIndex = 0; squareIndex < squares.size(); squareIndex++ ) {
             int column = squareIndex % columns;
 			int row = squareIndex / columns;

@@ -114,14 +114,18 @@ public class AppWindow {
 		history.clear();
 		ZobristHashing.clear();
 		position = new Position();
-		board.showPosition(position);
+		showPosition();
+	}
+
+	private void showPosition() {
+		board.showPosition(position.getBoardDisplay());
 	}
 
 	private boolean updatePosition(Position newPosition) {
 		if (newPosition != null) {
 			history.add(position);
 			position = newPosition;
-			board.showPosition(position);
+			showPosition();
 			return true;
 		} else {
 			return false;
@@ -149,7 +153,7 @@ public class AppWindow {
 	private void takeBackMove() {
 		if (history.size() > 0) {
 			position = history.remove(history.size()-1);
-			board.showPosition(position);
+			showPosition();
 		}
 	}
 
