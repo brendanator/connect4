@@ -1,6 +1,7 @@
 package gameplay;
 
 import static org.junit.Assert.assertEquals;
+
 import org.junit.Test;
 
 public class PositionEvaluationDiffblueTest {
@@ -19,20 +20,23 @@ public class PositionEvaluationDiffblueTest {
   @Test
   public void getPositionValueTest() {
     // Arrange, Act and Assert
-    assertEquals(-7, (new PositionEvaluation(Turn.RED, 1L, 1L)).getPositionValue());
+    assertEquals(-7,
+                 (new PositionEvaluation(Turn.RED, 1L, 1L)).getPositionValue());
   }
 
   @Test
   public void toStringTest() {
     // Arrange, Act and Assert
-    assertEquals("Value: -7  DoubleThreat: NONE  Zugwang: NONE  Threats: 0, 0  Minor Threats: 0, 0  Blockers: 2 9",
+    assertEquals(
+        "Value: -7  DoubleThreat: NONE  Zugwang: NONE  Threats: 0, 0  Minor Threats: 0, 0  Blockers: 2 9",
         (new PositionEvaluation(Turn.RED, 1L, 1L)).toString());
   }
 
   @Test
   public void constructorTest() {
     // Arrange and Act
-    PositionEvaluation actualPositionEvaluation = new PositionEvaluation(Turn.RED, 1L, 1L);
+    PositionEvaluation actualPositionEvaluation =
+        new PositionEvaluation(Turn.RED, 1L, 1L);
 
     // Assert
     long actualRedWin = actualPositionEvaluation.getRedWin();
@@ -41,7 +45,8 @@ public class PositionEvaluationDiffblueTest {
     assertEquals(0L, actualRedWin);
     assertEquals(0L, actualPositionEvaluation.getYellowWin());
     assertEquals(-7, actualPositionValue);
-    assertEquals("Value: -7  DoubleThreat: NONE  Zugwang: NONE  Threats: 0, 0  Minor Threats: 0, 0  Blockers: 2 9",
+    assertEquals(
+        "Value: -7  DoubleThreat: NONE  Zugwang: NONE  Threats: 0, 0  Minor Threats: 0, 0  Blockers: 2 9",
         actualToStringResult);
   }
 }
