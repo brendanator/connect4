@@ -3,6 +3,7 @@ package gameplay;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
+
 import gui.BoardDisplay;
 import java.util.ArrayList;
 import org.junit.Rule;
@@ -10,19 +11,20 @@ import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
 public class PositionDiffblueTest {
-  @Rule
-  public ExpectedException thrown = ExpectedException.none();
+  @Rule public ExpectedException thrown = ExpectedException.none();
 
   @Test
   public void getBoardDisplayTest() {
     // Arrange, Act and Assert
-    assertTrue((new Position()).getBoardDisplay() instanceof PositionBoardDisplay);
+    assertTrue((new Position()).getBoardDisplay() instanceof
+               PositionBoardDisplay);
   }
 
   @Test
   public void toStringTest() {
     // Arrange, Act and Assert
-    assertEquals("Value: 0  DoubleThreat: NONE  Zugwang: NONE  Threats: 0, 0  Minor Threats: 0, 0  Blockers: 0 0",
+    assertEquals(
+        "Value: 0  DoubleThreat: NONE  Zugwang: NONE  Threats: 0, 0  Minor Threats: 0, 0  Blockers: 0 0",
         (new Position()).toString());
   }
 
@@ -67,7 +69,8 @@ public class PositionDiffblueTest {
     String actualToStringResult = actualPosition.toString();
     assertFalse(actualIsGameOverResult);
     assertEquals(7, actualPosition.getPossibleMoves().size());
-    assertEquals("Value: 0  DoubleThreat: NONE  Zugwang: NONE  Threats: 0, 0  Minor Threats: 0, 0  Blockers: 0 0",
+    assertEquals(
+        "Value: 0  DoubleThreat: NONE  Zugwang: NONE  Threats: 0, 0  Minor Threats: 0, 0  Blockers: 0 0",
         actualToStringResult);
   }
 }
